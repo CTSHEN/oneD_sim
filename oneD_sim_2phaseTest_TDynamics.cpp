@@ -9,8 +9,8 @@
 #define M1S 14 //8.5 //kg
 #define MF_INIT 0.6 //kg
 #define G 9.81 // m/s2
-#define THRUST_D 133//20 // N
-#define THRUST_U 100//15
+#define THRUST_D 20 // N
+#define THRUST_U 15
 #define FLOW_RATE 0.018 // kg/s
 
 #define TOTAL_NODE 20
@@ -52,7 +52,7 @@ adouble integrand_cost(adouble* states, adouble* controls, adouble* parameters,
     xt_error = states[0] - x_ref;
 
     
-    //return 0.5*input*input;
+    
     return 2*pow(xt_error,2);
     //return  0.0;
 }
@@ -66,8 +66,7 @@ void dae(adouble* derivatives, adouble* path, adouble* states, adouble* controls
             adouble x =     states[0];
             adouble v =     states[1];
             adouble m =     states[2];
-            adouble fd =    states[3];
-            adouble fu =    states[4];
+            
             
             adouble u1 = controls[0];
             adouble u2 = controls[1];
@@ -75,13 +74,9 @@ void dae(adouble* derivatives, adouble* path, adouble* states, adouble* controls
             // dynamic of phase 1: only ThrusterD
             if (iphase == 1 || iphase==3 || iphase==5 || iphase==7)
             {
-                fddot = -25.6926*fd + 3.7411*u1;
-                //fdout = 6.4766*fd;
-                fudot = -25.6926*fu + 3.7411*u2;
-                //fuout = 6.4766*fu;
                 xdot = v;
-                vdot = (M2-M1S-m)*G/(M2+M1S+m) + THRUST_D*fd/(M2+M1S+m) -
-                 THRUST_U*fu/(M2+M1S+m);
+                vdot = (M2-M1S-m)*G/(M2+M1S+m) + THRUST_D*u1/(M2+M1S+m) -
+                 THRUST_U*u2/(M2+M1S+m);
                 
                 mdot = -FLOW_RATE*(u1+u2);
             }
@@ -89,13 +84,9 @@ void dae(adouble* derivatives, adouble* path, adouble* states, adouble* controls
             // dynamic of phase 2 : only ThrusterU
             if(iphase == 2 || iphase==4 || iphase==6 || iphase==8)
             {
-                fddot = -25.6926*fd + 3.7411*u1;
-                //fdout = 6.4766*fd;
-                fudot = -25.6926*fu + 3.7411*u2;
-                //fuout = 6.4766*fu;
                 xdot = v;
-                vdot = (M2-M1S-m)*G/(M2+M1S+m) + THRUST_D*fd/(M2+M1S+m)-
-                 THRUST_U*fu/(M2+M1S+m);
+                vdot = (M2-M1S-m)*G/(M2+M1S+m) + THRUST_D*u1/(M2+M1S+m)-
+                 THRUST_U*u1/(M2+M1S+m);
                 mdot = -FLOW_RATE*(u1+u2);
 
             }
@@ -104,8 +95,7 @@ void dae(adouble* derivatives, adouble* path, adouble* states, adouble* controls
             derivatives[0] = xdot;
             derivatives[1] = vdot;
             derivatives[2] = mdot;
-            derivatives[3] = fddot;
-            derivatives[4] = fudot;
+            
                 
          }
 
@@ -119,14 +109,12 @@ void events(adouble* e, adouble* initial_states, adouble* final_states,
         adouble x0 =    initial_states[0];
         adouble v0 =    initial_states[1];
         adouble m0 =    initial_states[2];
-        adouble fd0 =   initial_states[3];
-        adouble fu0 =   initial_states[4];
+        
 
         e[0] = x0;
         e[1] = v0;
         e[2] = m0;
-        e[3] = fd0;
-        e[4] = fu0;
+        
     }
 
     adouble xf2[5];
@@ -157,8 +145,8 @@ void events(adouble* e, adouble* initial_states, adouble* final_states,
 void linkages( adouble* linkages, adouble* xad, Workspace* workspace)
 {
     // Number of linkages:
-    // Boundary of phase 1 to 8: 5 state continuity + 1 time continuity
-    // Total: 42 linkage constraints
+    // Boundary of phase 1 to 8: 3 state continuity + 1 time continuity
+    // Total: 28 linkage constraints
 
     adouble xf1[5], xi2[5], tf1, ti2; // P1 & P2
     adouble xf2[5], xi3[5], tf2, ti3; // P2 & P3
