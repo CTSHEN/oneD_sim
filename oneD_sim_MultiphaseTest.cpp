@@ -14,7 +14,8 @@
 #define FLOW_RATE 0.018 // kg/s
 
 #define TOTAL_NODE 20
-#define TOTAL_PHASE 8
+#define TOTAL_PHASE 14
+#define FINAL_TIME 10
 
 using namespace PSOPT;
 
@@ -37,13 +38,13 @@ adouble integrand_cost(adouble* states, adouble* controls, adouble* parameters,
     adouble xt_error = 0;
     // Approximate square wave function
     adouble x_ref;
-    /*
-    if (time < 9)
+    
+    /*if (time < 5)
     {
         x_ref = 1;
     }
     
-    if (time >= 9)
+    if (time >= 5)
     {
         x_ref = 0.1;
     }*/
@@ -72,7 +73,8 @@ void dae(adouble* derivatives, adouble* path, adouble* states, adouble* controls
             adouble u2 = controls[1];
 
             // dynamic of phase 1: only ThrusterD
-            if (iphase == 1 || iphase==3 || iphase==5 || iphase==7)
+            //if (iphase == 1 || iphase==3 || iphase==5 || iphase==7 || iphase==9 || iphase==11)
+            if(iphase%2 != 0)
             {
                 xdot = v;
                 vdot = (M2-M1S-m)*G/(M2+M1S+m) + THRUST_D*u1/(M2+M1S+m) -
@@ -82,7 +84,8 @@ void dae(adouble* derivatives, adouble* path, adouble* states, adouble* controls
             }
 
             // dynamic of phase 2 : only ThrusterU
-            if(iphase == 2 || iphase==4 || iphase==6 || iphase==8)
+            //if(iphase == 2 || iphase==4 || iphase==6 || iphase==8 || iphase==10 || iphase==12)
+            if(iphase%2 == 0)
             {
                 xdot = v;
                 vdot = (M2-M1S-m)*G/(M2+M1S+m) + THRUST_D*u1/(M2+M1S+m)-
@@ -123,11 +126,11 @@ void events(adouble* e, adouble* initial_states, adouble* final_states,
         get_final_states(   xf2, xad, 2, workspace);
         adouble vf2 = xf2[1];
 
-        e[0] = vf2;
+        //e[0] = vf2;
 
     }
     
-    if (iphase == 8)
+    if (iphase == TOTAL_PHASE)
     {
         adouble xf = final_states[0];  //final state for phase 2
         adouble vf = final_states[1];  //final state for phase 2
@@ -145,10 +148,10 @@ void events(adouble* e, adouble* initial_states, adouble* final_states,
 void linkages( adouble* linkages, adouble* xad, Workspace* workspace)
 {
     // Number of linkages:
-    // Boundary of phase 1 to 8: 3 state continuity + 1 time continuity
-    // Total: 28 linkage constraints
+    // Boundary of phase 1 to 12: 3 state continuity + 1 time continuity
+    // Total: 44 linkage constraints
 
-    adouble xf1[3], xi2[3], tf1, ti2; // P1 & P2
+    /*adouble xf1[3], xi2[3], tf1, ti2; // P1 & P2
     adouble xf2[3], xi3[3], tf2, ti3; // P2 & P3
     adouble xf3[3], xi4[3], tf3, ti4; // P3 & P4
     adouble xf4[3], xi5[3], tf4, ti5; // P4 & P5
@@ -231,7 +234,23 @@ void linkages( adouble* linkages, adouble* xad, Workspace* workspace)
     linkages[24] = xf7[0] - xi8[0];
     linkages[25] = xf7[1] - xi8[1];
     linkages[26] = xf7[2] - xi8[2];
-    linkages[27] = tf7 - ti8;
+    linkages[27] = tf7 - ti8;*/
+
+    int index = 0;
+
+    auto_link(linkages, &index, xad, 1, 2,  workspace);
+    auto_link(linkages, &index, xad, 2, 3,  workspace);
+    auto_link(linkages, &index, xad, 3, 4,  workspace);
+    auto_link(linkages, &index, xad, 4, 5,  workspace);
+    auto_link(linkages, &index, xad, 5, 6,  workspace);
+    auto_link(linkages, &index, xad, 6, 7,  workspace);
+    auto_link(linkages, &index, xad, 7, 8,  workspace);
+    auto_link(linkages, &index, xad, 8, 9,  workspace);
+    auto_link(linkages, &index, xad, 9, 10, workspace);
+    auto_link(linkages, &index, xad, 10,11, workspace);
+    auto_link(linkages, &index, xad, 11, 12, workspace);
+    auto_link(linkages, &index, xad, 12,13, workspace);
+    auto_link(linkages, &index, xad, 13, 14, workspace);
 }
 
 ////////// Define main routine //////////
@@ -253,7 +272,7 @@ int main(void)
 
     // Define problem level constants & do level 1 setup //
     problem.nphases = TOTAL_PHASE;
-    problem.nlinkages = 28;
+    problem.nlinkages = 4*(TOTAL_PHASE-1);
 
     psopt_level1_setup(problem);
 
@@ -267,11 +286,11 @@ int main(void)
 
     problem.phases(2).nstates = 3;
     problem.phases(2).ncontrols = 2;  
-    problem.phases(2).nevents = 1;
+    problem.phases(2).nevents = 0;
     problem.phases(2).npath = 0;
     problem.phases(2).nodes << TOTAL_NODE;
 
-    for(PhaseIdx=3;PhaseIdx<8; PhaseIdx++ )
+    for(PhaseIdx=3;PhaseIdx<TOTAL_PHASE; PhaseIdx++ )
     {
         problem.phases(PhaseIdx).nstates = 3;
         problem.phases(PhaseIdx).ncontrols = 2;  
@@ -280,11 +299,11 @@ int main(void)
         problem.phases(PhaseIdx).nodes << TOTAL_NODE;
     }
 
-    problem.phases(8).nstates = 3;
-    problem.phases(8).ncontrols = 2;  
-    problem.phases(8).nevents = 0;//2;
-    problem.phases(8).npath = 0;
-    problem.phases(8).nodes << TOTAL_NODE;
+    problem.phases(TOTAL_PHASE).nstates = 3;
+    problem.phases(TOTAL_PHASE).ncontrols = 2;  
+    problem.phases(TOTAL_PHASE).nevents = 0;//2;
+    problem.phases(TOTAL_PHASE).npath = 0;
+    problem.phases(TOTAL_PHASE).nodes << TOTAL_NODE;
 
     psopt_level2_setup(problem, algorithm);
 
@@ -303,50 +322,44 @@ int main(void)
     problem.phases(1).bounds.upper.StartTime = 0.0;
 
     problem.phases(1).bounds.lower.EndTime = 0;
-    problem.phases(1).bounds.upper.EndTime = 8;
+    problem.phases(1).bounds.upper.EndTime = FINAL_TIME;
 
-    for(PhaseIdx=3; PhaseIdx<=7; PhaseIdx = PhaseIdx+2)
+    for(PhaseIdx=3; PhaseIdx<=TOTAL_PHASE; PhaseIdx = PhaseIdx+2)
     {
         problem.phases(PhaseIdx).bounds.lower.states << 0, -2, 0;
         problem.phases(PhaseIdx).bounds.upper.states << 3, 2, MF_INIT;
         problem.phases(PhaseIdx).bounds.lower.controls << 1.0, 0.0;
         problem.phases(PhaseIdx).bounds.upper.controls << 1.0, 0.0;
         problem.phases(PhaseIdx).bounds.lower.StartTime = 0.0;
-        problem.phases(PhaseIdx).bounds.upper.StartTime = 8.0;
+        problem.phases(PhaseIdx).bounds.upper.StartTime = FINAL_TIME;
         problem.phases(PhaseIdx).bounds.lower.EndTime = 0;
-        problem.phases(PhaseIdx).bounds.upper.EndTime = 8;
+        problem.phases(PhaseIdx).bounds.upper.EndTime = FINAL_TIME;
     }
 
-    for(PhaseIdx=2; PhaseIdx<=6; PhaseIdx = PhaseIdx+2)
+    for(PhaseIdx=2; PhaseIdx<TOTAL_PHASE; PhaseIdx = PhaseIdx+2)
     {
         problem.phases(PhaseIdx).bounds.lower.states << 0, -2, 0;
         problem.phases(PhaseIdx).bounds.upper.states << 3, 2, MF_INIT;
         problem.phases(PhaseIdx).bounds.lower.controls << 0.0, 1.0;
         problem.phases(PhaseIdx).bounds.upper.controls << 0.0, 1.0;
         problem.phases(PhaseIdx).bounds.lower.StartTime = 0.0;
-        problem.phases(PhaseIdx).bounds.upper.StartTime = 8.0;
+        problem.phases(PhaseIdx).bounds.upper.StartTime = FINAL_TIME;
         problem.phases(PhaseIdx).bounds.lower.EndTime = 0;
-        problem.phases(PhaseIdx).bounds.upper.EndTime = 8;
+        problem.phases(PhaseIdx).bounds.upper.EndTime = FINAL_TIME;
     }
 
-    problem.phases(2).bounds.lower.events << 0;
-    problem.phases(2).bounds.upper.events << 0;
+    //problem.phases(2).bounds.lower.events << 0;
+    //problem.phases(2).bounds.upper.events << 0;
 
-    // Phase 8
-    problem.phases(8).bounds.lower.states << 0, -2, 0;
-    problem.phases(8).bounds.upper.states << 3, 2, MF_INIT;
-
-    problem.phases(8).bounds.lower.controls << 0.0, 1.0;
-    problem.phases(8).bounds.upper.controls << 0.0, 1.0;
-
-    //problem.phases(8).bounds.lower.events << -0.05;
-    //problem.phases(8).bounds.upper.events << 0.05;
-
-    problem.phases(8).bounds.lower.StartTime = 0.0;
-    problem.phases(8).bounds.upper.StartTime = 8.0;
-
-    problem.phases(8).bounds.lower.EndTime = 8;
-    problem.phases(8).bounds.upper.EndTime = 8;
+    // Last phase
+    problem.phases(TOTAL_PHASE).bounds.lower.states << 0, -2, 0;
+    problem.phases(TOTAL_PHASE).bounds.upper.states << 3, 2, MF_INIT;
+    problem.phases(TOTAL_PHASE).bounds.lower.controls << 0.0, 1.0;
+    problem.phases(TOTAL_PHASE).bounds.upper.controls << 0.0, 1.0;
+    problem.phases(TOTAL_PHASE).bounds.lower.StartTime = 0.0;
+    problem.phases(TOTAL_PHASE).bounds.upper.StartTime = FINAL_TIME;
+    problem.phases(TOTAL_PHASE).bounds.lower.EndTime = FINAL_TIME;
+    problem.phases(TOTAL_PHASE).bounds.upper.EndTime = FINAL_TIME;
 
     ////////// Rigister problem functions //////////
 
@@ -367,10 +380,10 @@ int main(void)
     
 
     //problem.phases(1).guess.controls       = zeros(2,nnodes);
-    for(PhaseIdx=1; PhaseIdx<=8; PhaseIdx++)
+    for(PhaseIdx=1; PhaseIdx<=TOTAL_PHASE; PhaseIdx++)
     {
         problem.phases(PhaseIdx).guess.states         = x0;
-        problem.phases(PhaseIdx).guess.time           = linspace(0.0, 8.0, nnodes);
+        problem.phases(PhaseIdx).guess.time           = linspace(0.0, FINAL_TIME, nnodes);
     }
    
     
@@ -393,7 +406,17 @@ int main(void)
 
     if (solution.error_flag) exit(0);
       
+    MatrixXd xStar(3, TOTAL_PHASE*TOTAL_NODE);
+    MatrixXd uStar(2, TOTAL_PHASE*TOTAL_NODE);
+    MatrixXd tStar(1, TOTAL_PHASE*TOTAL_NODE);
 
+    for(PhaseIdx=1; PhaseIdx<=TOTAL_PHASE; PhaseIdx++ )
+    {
+        xStar.block<3,TOTAL_NODE>(0,TOTAL_NODE*(PhaseIdx-1)) = solution.get_states_in_phase(PhaseIdx);
+        uStar.block<2,TOTAL_NODE>(0,TOTAL_NODE*(PhaseIdx-1)) = solution.get_controls_in_phase(PhaseIdx);
+        tStar.block<1,TOTAL_NODE>(0,TOTAL_NODE*(PhaseIdx-1)) = solution.get_time_in_phase(PhaseIdx);
+    }
+    /*
     ////////// Extract variables from solution structure //////////
     MatrixXd xPhase1 		= solution.get_states_in_phase(1);
     MatrixXd uPhase1        = solution.get_controls_in_phase(1);
@@ -430,15 +453,24 @@ int main(void)
     MatrixXd uPhase8        = solution.get_controls_in_phase(8);
     MatrixXd tPhase8 		= solution.get_time_in_phase(8);
 
+    MatrixXd xPhase9 		= solution.get_states_in_phase(9);
+    MatrixXd uPhase9        = solution.get_controls_in_phase(9);
+    MatrixXd tPhase9 		= solution.get_time_in_phase(9);
+
+    MatrixXd xPhase10 		= solution.get_states_in_phase(10);
+    MatrixXd uPhase10        = solution.get_controls_in_phase(10);
+    MatrixXd tPhase10 		= solution.get_time_in_phase(10);
+
     MatrixXd xStar(3, length(tPhase1)+length(tPhase2)+length(tPhase3)
-        +length(tPhase4)+length(tPhase5)+length(tPhase6)+length(tPhase7)+length(tPhase8));
-    xStar << xPhase1, xPhase2, xPhase3, xPhase4, xPhase5, xPhase6, xPhase7, xPhase8;
+        +length(tPhase4)+length(tPhase5)+length(tPhase6)+length(tPhase7)+length(tPhase8)+length(tPhase9)+length(tPhase10));
+    xStar << xPhase1, xPhase2, xPhase3, xPhase4, xPhase5, xPhase6, xPhase7, xPhase8, xPhase9, xPhase10;
     MatrixXd uStar(2, length(tPhase1)+length(tPhase2)+length(tPhase3)
-        +length(tPhase4)+length(tPhase5)+length(tPhase6)+length(tPhase7)+length(tPhase8));
-    uStar << uPhase1, uPhase2, uPhase3, uPhase4, uPhase5, uPhase6, uPhase7, uPhase8;
+        +length(tPhase4)+length(tPhase5)+length(tPhase6)+length(tPhase7)+length(tPhase8)+length(tPhase9)+length(tPhase10));
+    uStar << uPhase1, uPhase2, uPhase3, uPhase4, uPhase5, uPhase6, uPhase7, uPhase8, uPhase9, uPhase10;
     MatrixXd tStar(1, length(tPhase1)+length(tPhase2)+length(tPhase3)
-        +length(tPhase4)+length(tPhase5)+length(tPhase6)+length(tPhase7)+length(tPhase8));
-    tStar << tPhase1, tPhase2, tPhase3, tPhase4, tPhase5, tPhase6, tPhase7, tPhase8;
+        +length(tPhase4)+length(tPhase5)+length(tPhase6)+length(tPhase7)+length(tPhase8)+length(tPhase9)+length(tPhase10));
+    tStar << tPhase1, tPhase2, tPhase3, tPhase4, tPhase5, tPhase6, tPhase7, tPhase8, tPhase9, tPhase10;
+    */
 
 
     /// Test section ///
