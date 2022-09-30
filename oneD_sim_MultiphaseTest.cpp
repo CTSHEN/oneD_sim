@@ -389,13 +389,13 @@ int main(void)
     
 
     ////////// Algorithm options //////////
-    algorithm.nlp_method = "IPOPT";
-    algorithm.scaling = "automatic";
-    algorithm.derivatives = "automatic";
-    algorithm.nlp_iter_max = 300;
-    algorithm.nlp_tolerance = 1e-3;
-
-    algorithm.collocation_method = "Legendre";
+    algorithm.nlp_method                  = "IPOPT";
+    algorithm.scaling                     = "automatic";
+    algorithm.derivatives                 = "automatic";
+    algorithm.nlp_iter_max                = 300;
+    algorithm.nlp_tolerance               = 1e-3;
+    algorithm.mesh_refinement             = "automatic";
+    algorithm.collocation_method          = "Legendre";
 
     
 
